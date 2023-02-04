@@ -1,0 +1,4 @@
+*.jpg
+sample-output.json
+__pycache__/
+.cache-barath
