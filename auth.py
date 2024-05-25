@@ -3,9 +3,12 @@ import os
 import sys
 import time
 import base64
+import datetime, timedelta
 
 class colors:
     GREEN='\033[92m'
+
+future_expiry_time = 0
 
 def get_auth_token():
     headers = {}
@@ -21,8 +24,12 @@ def get_auth_token():
     headers['Authorization'] = f"Basic {base64Message}"
     data['grant_type'] = "client_credentials"
     r = requests.post(TOKEN_URL, headers=headers, data=data)
-    print(r.json())
-    token = r.json()['access_token']
+    json_response = r.json()
+    print(json_response)
+    expires_in = json_response['expires_in']
+    hours = expires_in/60
+    future_expiry_time = datetime.datetime.now() + datetime.timedelta(hours=hours)
+    token = json_response['access_token']
     return token
 
 def display_progress():
@@ -48,4 +55,4 @@ def display_progress():
             sys.stdout.write('\b')
     
 # display_progress()
-#get_auth_token()
+get_auth_token()

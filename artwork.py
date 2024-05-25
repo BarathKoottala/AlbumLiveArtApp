@@ -1,4 +1,5 @@
 import spotipy
+import os
 from spotipy.oauth2 import SpotifyClientCredentials
 # from PIL import Image
 import requests
@@ -21,9 +22,13 @@ def get_artwork(album_id):
     album_url = "https://api.spotify.com/v1/albums/" + album_id
     response = requests.get(album_url, params=parameters)
     print(response.json)
+    img = Image.open(BytesIO(response.content))
     return response
     # img = Image.open(BytesIO(response.content))
 
 #TODO: Attempt to make function that makes the album artwork resemble a record spinning
 def make_artwork_spin():
     pass
+
+def delete_picture():
+    os.remove("album_art.jpg")

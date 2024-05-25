@@ -1,9 +1,9 @@
-#!/usr/local/bin/python
-import plotly.express as px
-import plotly.io as pio
-pio.renderers.default = 'svg'
-from skimage import io as imgio
-from skimage.transform import resize
+#!/usr/local/bin/python3
+# import plotly.express as px
+# import plotly.io as pio
+# pio.renderers.default = 'svg'
+# from skimage import io as imgio
+# from skimage.transform import resize
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import os
@@ -13,31 +13,41 @@ import spotipy.util as util
 from artwork import get_artwork
 import pyfiglet 
 
+current_track_id = None
+spotify_cli_client_id = os.environ.get('SPOTIFY_CLI_CLIENT_ID')
+spotify_cli_client_secret = os.environ.get('SPOTIFY_CLI_CLIENT_SECRET')
+redirect_uri = os.environ.get('SPOTIFY_REDIRECT_URI')
 
 
 CURRENT_TRACK_URL = "https://api.spotify.com/v1/me/player"
 
 def get_track():
-    result = pyfiglet.figlet_format("Spotify Artwork App") 
-    # print(result)
-    sys.stdout.write(f'{colors.GREEN}{result}')
+   
     # If authentication error occurs, most likely have to source ~/.bash-profile again
     # You can automate this process by adding source ~/.bash-profile to 
     # your ~/.bash_profile
-    spotify_cli_client_id = os.environ.get('SPOTIFY_CLI_CLIENT_ID')
-    spotify_cli_client_secret = os.environ.get('SPOTIFY_CLI_CLIENT_SECRET')
+    
     username = "barath"
     scope = "user-read-currently-playing"
-    redirect_uri = os.environ.get('redirect_uri')
+    print(redirect_uri)
     token = util.prompt_for_user_token(username, scope, spotify_cli_client_id, spotify_cli_client_secret, redirect_uri)
     if token:
         sp = spotipy.Spotify(auth=token)
         results = sp.current_user_playing_track()
+        if results == None:
+            print("No track currently playing")
+            return
         item = results["item"]
         album = item["album"]
         track = album["name"]
         artists = album["artists"]
-        track_id = item["id"] # TODO: Eventually want to continuously check next song is the same as the current song
+        track_id = item["id"]
+        global current_track_id
+        if current_track_id == None or current_track_id != track_id:
+            current_track_id = track_id
+        elif current_track_id == track_id:
+            print("Same song, going to request later")
+            time.sleep(30)
         artists_name = ', '.join(artist['name'] for artist in artists)
         sys.stdout.write(f'{colors.GREEN}Currently Playing: {track} by {artists_name}\n')
     else:
@@ -48,6 +58,14 @@ def get_track():
     img_data = requests.get(album_art_url).content
     with open('album_art.jpg', 'wb') as handler:
         handler.write(img_data)
+        handler.close()
+    time.sleep(1)
     
 
-get_track()
+def main():
+    result = pyfiglet.figlet_format("Spotify Artwork App") 
+    sys.stdout.write(f'{colors.GREEN}{result}')
+    while(True):
+        get_track()
+
+main()
