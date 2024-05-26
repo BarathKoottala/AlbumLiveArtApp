@@ -36,10 +36,13 @@ def get_track():
         results = sp.current_user_playing_track()
         if results == None:
             print("No track currently playing")
+            time.sleep(60)
             return
         item = results["item"]
+        breakpoint()
         album = item["album"]
-        track = album["name"]
+        album_name = album["name"]
+        track_name = results["item"]["name"]
         artists = album["artists"]
         track_id = item["id"]
         global current_track_id
@@ -48,8 +51,9 @@ def get_track():
         elif current_track_id == track_id:
             print("Same song, going to request later")
             time.sleep(30)
+            return
         artists_name = ', '.join(artist['name'] for artist in artists)
-        sys.stdout.write(f'{colors.GREEN}Currently Playing: {track} by {artists_name}\n')
+        sys.stdout.write(f'{colors.GREEN}Currently Playing: {track_name} by {artists_name}\n')
     else:
         print("Can't get token for", username)
     
