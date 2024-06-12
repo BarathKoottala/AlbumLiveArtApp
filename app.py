@@ -1,11 +1,7 @@
-from flask import Flask, render_template, request, url_for, make_response
+from flask import Flask, render_template, request, make_response
 from functools import wraps
 from basic import main as get_music
-from PIL import Image
-from threading import Thread, Event
-import base64
-import io
-import os
+from threading import Thread
 
 app = Flask(__name__, static_url_path='/static')
 
