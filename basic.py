@@ -7,9 +7,14 @@ from auth import *
 import spotipy.util as util
 from artwork import get_artwork
 import logging
+from logging.handlers import RotatingFileHandler
+
 
 logger = logging.getLogger('spotify_artwork_app')
 logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG)
+handler = RotatingFileHandler("example.log", maxBytes=5*1024*1024, backupCount=1)
+logger.addHandler(handler)
+
 
 current_track_id = None
 spotify_cli_client_id = os.environ.get('SPOTIFY_CLI_CLIENT_ID')
@@ -65,8 +70,8 @@ def get_track():
 
 def main():
     logger.info("Starting")
-    result = pyfiglet.figlet_format("Spotify Artwork App") 
-    logger.info(f'{colors.GREEN}{result}')
+    title = "Spotify Artwork App"
+    logger.info(f'{colors.GREEN}{title}')
     while(True):
         get_track()
 
