@@ -39,7 +39,7 @@ def get_track():
         results = sp.current_user_playing_track()
         if results == None:
             logger.info("No track currently playing")
-            time.sleep(60)
+            time.sleep(3)
             return
         item = results["item"]
         album = item["album"]
@@ -52,7 +52,7 @@ def get_track():
             current_track_id = track_id
         elif current_track_id == track_id:
             logger.info("Same song, going to request later")
-            time.sleep(10)
+            time.sleep(1)
             return
         artists_name = ', '.join(artist['name'] for artist in artists)
         logger.info(f'{colors.GREEN}Currently Playing: {track_name} by {artists_name}\n')

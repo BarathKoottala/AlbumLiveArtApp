@@ -29,4 +29,5 @@ body {
     font-family: 'Roboto', sans-serif; /* Use Roboto font */
     color: #000; /* Set default text color */
     margin: 0; /* Remove default margin */
+    padding-top: 30px;
 }
