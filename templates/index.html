@@ -4,13 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Artwork Display</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
+
+    <!-- <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet"> -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
 </head>
 <body class="bg-info text-white">
     <div id="imageContainer" class="text-center">
-        <img id="dynamicImage" src="{{ url_for('static', filename='album_art.jpg') }}?{{ time }}" alt="Image" width="300" height="300">
+        <div class="imageWrapper">
+            <img id="dynamicImage" src="{{ url_for('static', filename='album_art.jpg') }}?{{ time }}" alt="Image" width="300" height="300">
+        </div>
         <div class="textContainer">
             <h1 id="currentlyPlaying">Now Playing</h1>
         </div>
@@ -22,7 +26,7 @@
 
 function refreshArtwork(){
     console.log('refresh Artwork function called'); // Debug alert
-    const container = document.getElementById('imageContainer');
+
     const img = document.getElementById('dynamicImage');
     const newImg = document.createElement('img');
     const oldImg = document.getElementById('dynamicImage');
@@ -37,7 +41,7 @@ function refreshArtwork(){
     // Use the load event to ensure the image has loaded before displaying
     newImg.onload = function() {
         console.log('Image loaded:', newImg.src); // Debug log
-        container.replaceChild(newImg, oldImg); // Replace old image with new one after it has loaded
+        oldImg.replaceWith(newImg);
 
         const colorThief = new ColorThief();
         let colorArray = colorThief.getColor(newImg);

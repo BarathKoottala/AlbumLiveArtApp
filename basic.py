@@ -39,7 +39,7 @@ def get_track():
         results = sp.current_user_playing_track()
         if results == None:
             logger.info("No track currently playing")
-            time.sleep(3)
+            time.sleep(1)
             return
         item = results["item"]
         album = item["album"]
