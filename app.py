@@ -34,6 +34,11 @@ def light_up():
 def health():
     return "OK", 200
 
+
+@app.route("/healthcheck")
+def healthcheck():
+    return "OK", 200
+
 @app.route('/')
 def index():
     return render_template('index.html')
