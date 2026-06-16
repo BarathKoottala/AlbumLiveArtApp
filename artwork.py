@@ -57,8 +57,11 @@ def draw_record_overlay(record_path, album_path, output_path):
     center_y = (record_height - album_diameter) // 2
     record.paste(album_circular, (center_x, center_y), album_circular)  # Use the album_circular as a mask
     
-    # Step 5: Save the result
-    record.save(output_path, format="PNG")
+    # Step 5: Save the result atomically — write to a temp file then rename, so a
+    # browser fetching output_path never reads a half-written (corrupt) image.
+    tmp_path = output_path + ".tmp"
+    record.save(tmp_path, format="PNG")
+    os.replace(tmp_path, output_path)
     print(f"Saved the resulting image to {output_path}")
 
 

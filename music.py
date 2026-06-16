@@ -148,7 +148,7 @@ def get_track(auth_token):
             handler.write(img_data)
         draw_record_overlay("./static/record.png", "./static/album_art.jpg", "./static/vinyl.png")
 
-        # New song -> recompute palette once (event-driven, not on a timer).
+        # New song -> recompute palette once (event-driven, fast & local).
         try:
             palette = compute_palette("./static/album_art.jpg", 5)
             globals.global_palette = palette
@@ -156,13 +156,15 @@ def get_track(auth_token):
         except Exception as e:
             logger.debug(f"Palette computation failed: {e}")
 
-        # New song -> fetch tempo (BPM) to drive the vinyl spin speed.
+        # Art + palette are ready -> let the frontend crossfade NOW, BEFORE the
+        # (networked, possibly slow) BPM lookup. Otherwise a manual skip waits on
+        # GetSongBPM's response before the artwork changes — the inconsistent lag.
+        globals.now_playing["art_version"] += 1
+
+        # Tempo only affects spin speed; it can arrive a poll later.
         tempo = fetch_tempo(track.artists, track.track_name)
         logger.debug(f"Tempo for '{track.track_name}': {tempo}")
         globals.now_playing["tempo"] = tempo
-
-        # Bump last so the frontend only crossfades once everything above is ready.
-        globals.now_playing["art_version"] += 1
         time.sleep(1)
     except requests.exceptions.ReadTimeout as e:
         print(str(e))

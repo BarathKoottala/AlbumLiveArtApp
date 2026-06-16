@@ -72,6 +72,11 @@
             imgs[activeImg].classList.remove('active');
             activeImg = next;
         };
+        incoming.onerror = function() {
+            // Load failed (e.g. file fetched mid-write) — allow a retry on the
+            // next poll instead of getting stuck on the old artwork forever.
+            if (lastArtVersion === version) lastArtVersion = -1;
+        };
         incoming.src = VINYL_SRC + '?v=' + version;   // cache-bust per art version
     }
 
@@ -120,7 +125,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         poll();
-        setInterval(poll, 2000);
+        setInterval(poll, 1000);
         requestAnimationFrame(tickProgress);
     });
 </script>
