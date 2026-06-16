@@ -7,71 +7,126 @@
     <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body class="bg-info text-white">
+<body>
     <div id="imageContainer" class="text-center">
         <div class="imageWrapper">
-            <img id="dynamicImage" src="{{ url_for('static', filename='album_art.jpg') }}?{{ time }}" alt="Image" width="300" height="300">
+            <!-- The spin animation is applied to .vinyl (the wrapper), NOT the
+                 <img>s, so crossfading the artwork inside never restarts it. -->
+            <div id="vinyl" class="vinyl">
+                <img id="art0" class="vinylArt active" src="{{ url_for('static', filename='vinyl.png') }}" alt="Album art">
+                <img id="art1" class="vinylArt" alt="Album art">
+            </div>
         </div>
         <div class="textContainer">
-            <h1 id="currentlyPlaying">Now Playing</h1>
+            <h1 id="trackName">Now Playing</h1>
+            <p id="artistName"></p>
         </div>
+        <div id="progressContainer"><div id="progressBar"></div></div>
     </div>
-</body>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
 
-<script type=text/javascript>
+<script type="text/javascript">
+    const VINYL_SRC = "{{ url_for('static', filename='vinyl.png') }}";
 
-function refreshArtwork(){
-    console.log('refresh Artwork function called'); // Debug alert
+    // How many beats make one full revolution. Lower = faster spin.
+    // 8 beats/rev -> 120 BPM is a calm 4s per rotation.
+    const BEATS_PER_REV = 8;
+    const DEFAULT_PERIOD_S = 10;   // fallback when tempo (BPM) is unknown
 
-    const img = document.getElementById('dynamicImage');
-    const newImg = document.createElement('img');
-    const oldImg = document.getElementById('dynamicImage');
+    const vinyl = document.getElementById('vinyl');
+    const imgs = [document.getElementById('art0'), document.getElementById('art1')];
+    let activeImg = 0;
 
-            
-    newImg.id = 'dynamicImage';
-    newImg.src = "{{ url_for('static', filename='album_art.jpg') }}" + '?' + Math.random();
-    newImg.alt = 'Image';
-    newImg.width = 300;
-    newImg.height = 300;
+    // Playback state for client-side progress interpolation between polls.
+    let lastArtVersion = -1;
+    let progressBaseMs = 0, durationMs = 0, isPlaying = false, localSyncTs = 0;
 
-    // Use the load event to ensure the image has loaded before displaying
-    newImg.onload = function() {
-        console.log('Image loaded:', newImg.src); // Debug log
-        oldImg.replaceWith(newImg);
-
-        const colorThief = new ColorThief();
-        let colorArray = colorThief.getColor(newImg);
-        let rgbString = "rgb(" +  colorArray[0].toString() + "," + colorArray[1].toString() + "," + colorArray[2].toString()  + ")";
-        document.body.style.backgroundColor = rgbString;
-        changeHeaderBasedOnLuminance(colorArray);
-        console.log(rgbString);
-    };
-}
-
-function getLuminance(r,g,b){
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function changeHeaderBasedOnLuminance(colorArray){
-    luminance = getLuminance(colorArray[0], colorArray[1], colorArray[2]);
-    if(luminance > 128) { // Halfway point on 255 scale
-        textColor = "black";
-    } else {
-        textColor = "white";
+    function getLuminance(r, g, b) {
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     }
-    document.getElementById("currentlyPlaying").style.color = textColor;
-}
-function startLogic(){
-    document.addEventListener('DOMContentLoaded', function() {
-        try {
-            setInterval(refreshArtwork, 5000); // Change image every 5 seconds
-        } catch (error) {
-            console.log(error);
-        }
-    });
-}
 
-startLogic(); 
+    function applyBackground(palette) {
+        if (!palette || !palette.length) return;
+        const c = palette[0];
+        // Flat dominant colour; the CSS transition eases old -> new on song change.
+        document.body.style.backgroundColor = `rgb(${c[0]},${c[1]},${c[2]})`;
+        const textColor = getLuminance(c[0], c[1], c[2]) > 128 ? "black" : "white";
+        document.getElementById("trackName").style.color = textColor;
+        document.getElementById("artistName").style.color = textColor;
+    }
+
+    function applyTempo(tempo) {
+        // One revolution every BEATS_PER_REV beats: period = (60/BPM) * beats.
+        const period = tempo ? (60 / tempo) * BEATS_PER_REV : DEFAULT_PERIOD_S;
+        vinyl.style.animationDuration = period.toFixed(3) + 's';
+    }
+
+    function crossfadeArt(version) {
+        // Fade the artwork swap in/out by toggling stacked <img>s — the spinning
+        // wrapper is untouched, so rotation stays smooth.
+        const next = 1 - activeImg;
+        const incoming = imgs[next];
+        incoming.onload = function() {
+            incoming.classList.add('active');
+            imgs[activeImg].classList.remove('active');
+            activeImg = next;
+        };
+        incoming.onerror = function() {
+            // Load failed (e.g. file fetched mid-write) — allow a retry on the
+            // next poll instead of getting stuck on the old artwork forever.
+            if (lastArtVersion === version) lastArtVersion = -1;
+        };
+        incoming.src = VINYL_SRC + '?v=' + version;   // cache-bust per art version
+    }
+
+    async function poll() {
+        try {
+            const res = await fetch('/nowPlaying', { headers: { 'Content-Type': 'application/json' } });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+
+            // Track text
+            document.getElementById('trackName').textContent = data.track || 'Now Playing';
+            document.getElementById('artistName').textContent =
+                data.artist ? `${data.artist}${data.album ? ' — ' + data.album : ''}` : '';
+
+            applyTempo(data.tempo);
+
+            // Spin only while music is playing.
+            isPlaying = !!data.is_playing;
+            vinyl.style.animationPlayState = isPlaying ? 'running' : 'paused';
+
+            // Re-sync the progress bar to the server's sample.
+            progressBaseMs = data.progress_ms || 0;
+            durationMs = data.duration_ms || 0;
+            localSyncTs = Date.now();
+
+            // Crossfade artwork AND ease the background colour only when the
+            // song actually changed.
+            if (data.art_version !== lastArtVersion) {
+                lastArtVersion = data.art_version;
+                crossfadeArt(data.art_version);
+                applyBackground(data.palette);
+            }
+        } catch (err) {
+            console.error('poll error:', err);
+        }
+    }
+
+    function tickProgress() {
+        // Smoothly advance the bar between polls using the local clock.
+        if (durationMs > 0) {
+            const elapsed = progressBaseMs + (isPlaying ? Date.now() - localSyncTs : 0);
+            const pct = Math.max(0, Math.min(100, (elapsed / durationMs) * 100));
+            document.getElementById('progressBar').style.width = pct + '%';
+        }
+        requestAnimationFrame(tickProgress);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        poll();
+        setInterval(poll, 1000);
+        requestAnimationFrame(tickProgress);
+    });
 </script>
+</body>
 </html>

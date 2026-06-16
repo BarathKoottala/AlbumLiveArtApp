@@ -3,7 +3,7 @@ import os
 import sys
 import time
 import base64
-import datetime, timedelta
+import datetime
 
 class colors:
     GREEN='\033[92m'
@@ -13,6 +13,7 @@ future_expiry_time = 0
 def get_auth_token():
     headers = {}
     data = {}
+    # global logger
     TOKEN_URL = "https://accounts.spotify.com/api/token"
     SPOTIFY_CLI_CLIENT_ID = os.environ.get('SPOTIFY_CLI_CLIENT_ID')
     SPOTIFY_CLI_CLIENT_SECRET = os.environ.get('SPOTIFY_CLI_CLIENT_SECRET')
@@ -55,4 +56,4 @@ def display_progress():
             sys.stdout.write('\b')
     
 # display_progress()
-get_auth_token()
+# get_auth_token()  # don't fire a Spotify request on import; call explicitly where needed

@@ -2,3 +2,18 @@
 sample-output.json
 __pycache__/
 .cache-barath
+
+# virtualenv
+.venv/
+venv/
+env/
+
+# logs
+*.log
+
+# macOS
+.DS_Store
+
+# secrets / token cache
+.env
+.cache-*
