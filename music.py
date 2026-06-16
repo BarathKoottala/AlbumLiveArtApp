@@ -1,6 +1,6 @@
 #!/usr/local/bin/python3
 import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
+from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 import os
 import requests
 from auth import *
@@ -54,19 +54,18 @@ class Track():
         self.duration = item["duration_ms"]
         self.track_id = item["id"]
 
-def get_auth_token():
-    username = "barath"
-    scope = "user-read-currently-playing"
-    global logger
-    logger.debug(redirect_uri)
-    token = util.prompt_for_user_token(username, scope, spotify_cli_client_id, spotify_cli_client_secret, redirect_uri, cache_path=CACHE_PATH)
-    if token:
-        # Never log the raw token — it's a live credential.
-        logger.debug(f"Successfully fetched auth token (…{token[-6:]})")
-        return token
-    else:
-        logger.debug("Failed to fetch auth token")
-        return None
+def get_auth_manager():
+    # SpotifyOAuth transparently refreshes the access token (using the cached
+    # refresh token) before each request, so the app never gets stuck on an
+    # expired token the way a static token string would.
+    return SpotifyOAuth(
+        client_id=spotify_cli_client_id,
+        client_secret=spotify_cli_client_secret,
+        redirect_uri=redirect_uri,
+        scope="user-read-currently-playing",
+        cache_path=CACHE_PATH,
+        open_browser=False,
+    )
 
 def fetch_tempo(artist, title):
     """Look up a song's tempo (BPM) via the GetSongBPM API. Returns a float or
@@ -101,13 +100,7 @@ def fetch_tempo(artist, title):
     return None
 
 
-def get_track(auth_token):
-   
-    # If authentication error occurs, most likely have to source ~/.bash-profile again
-    # You can automate this process by adding source ~/.bash-profile to 
-    # your ~/.bash_profile
-    
-    sp = spotipy.Spotify(auth=auth_token)
+def get_track(sp):
     try:
         results = sp.current_user_playing_track()
         if results is None or results.get("item") is None:
@@ -176,17 +169,12 @@ def get_track(auth_token):
 
 def get_music():
     print("Starting")
-    title = "Spotify Artwork App"
-    print(f'{title}')
-    token = get_auth_token()
-    timeout = time.time() + 60*60 #60 minute timer (length of auth token)
-    while(True):
-        if token and time.time() < timeout:
-            get_track(auth_token=token)
-        else:
-            token = get_auth_token()
-            # timeout = time.time() + 60*60
-            timeout = time.time() + 60
+    print("Spotify Artwork App")
+    # The auth_manager refreshes the token automatically on every request, so
+    # there's no manual expiry timer to get out of sync with the real token.
+    sp = spotipy.Spotify(auth_manager=get_auth_manager())
+    while True:
+        get_track(sp)
 
 # if __name__ == "__main__":
 #     logger.debug("Running main")
