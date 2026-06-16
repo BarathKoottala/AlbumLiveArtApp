@@ -5,29 +5,35 @@ import time
 import globals
 
 
-def get_color_palette_min_batch(image_path, num_colors=5):
-    while True:
-        # Open image
-        image = Image.open(image_path)
-        # Convert to RGB
-        image = image.convert("RGB")
-        # Resize for fsater processing
-        image = image.resize((256, 256))
-        # Convert to numpy array
-        image_array = np.array(image)
-        # Reshape to 2D array
-        pixels = image_array.reshape((-1, 3))
+def compute_palette(image_path, num_colors=5):
+    """Single-shot dominant-colour extraction, most-dominant colour first.
 
-        # Apply K-Means clustering
-        # kmeans = KMeans(n_clusters=num_colors)
-        kmeans = MiniBatchKMeans(n_clusters=num_colors, batch_size=2048)
-        kmeans.fit(pixels)
-        # Get cluster centers (most dominant color)
-        # Ensure values are within valid RGB range (0-255)
-        globals.global_palette = [tuple(map(lambda x: max(0, min(255, int(x))), color)) for color in kmeans.cluster_centers_]
+    Returns a list of [r, g, b] lists. Cheap enough to run once whenever new
+    artwork arrives, instead of looping forever on a timer.
+    """
+    image = Image.open(image_path).convert("RGB").resize((256, 256))
+    pixels = np.array(image).reshape((-1, 3))
+
+    # random_state/n_init make the result stable so the same artwork yields the
+    # same palette every time instead of drifting.
+    kmeans = MiniBatchKMeans(n_clusters=num_colors, batch_size=2048, random_state=42, n_init=3)
+    labels = kmeans.fit_predict(pixels)
+    # cluster_centers_ come back in arbitrary order, so order clusters by pixel
+    # count (most-dominant first) — palette[0] is then the colour that actually
+    # covers the most of the artwork.
+    counts = np.bincount(labels, minlength=num_colors)
+    order = np.argsort(counts)[::-1]
+    centers = kmeans.cluster_centers_[order]
+    return [[max(0, min(255, int(c))) for c in color] for color in centers]
+
+
+def get_color_palette_min_batch(image_path, num_colors=5):
+    """Legacy polling loop, kept for backwards compatibility. The app now calls
+    compute_palette() event-driven from the music thread instead."""
+    while True:
+        globals.global_palette = compute_palette(image_path, num_colors)
         print(f"Finished calculating palette {globals.global_palette}")
         time.sleep(5)
-    # return globals.global_palette
 
 
 def get_color_palette(image_path, num_colors=5):

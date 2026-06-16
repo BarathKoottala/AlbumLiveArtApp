@@ -13,3 +13,7 @@ env/
 
 # macOS
 .DS_Store
+
+# secrets / token cache
+.env
+.cache-*
